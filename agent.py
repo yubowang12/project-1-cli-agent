@@ -97,12 +97,14 @@ def run_agent(user_input: str, messages: list = None) -> str:
         #   要用 try/except 包住，出错时返回 error dict 字符串，
         #   而不是让程序崩溃（error 是 data 不是 exception，参考 ex05）
         for tc in msg.tool_calls:
+            print(f"日志: 工具调用: {tc.function.name}")
             try:
                 args = json.loads(tc.function.arguments)
                 obs = TOOL_IMPL[tc.function.name](args)
                 messages.append(
                     {"role":"tool", "content":obs, "tool_call_id":tc.id}
                 )
+                print(f"日志: 工具调用返回值: {obs}")
             except Exception as e:
                 obs = json.dumps({"error":str(e), "retry_hint":"检查调用参数"}, ensure_ascii=False)
                 messages.append(

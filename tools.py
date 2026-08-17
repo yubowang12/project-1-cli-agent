@@ -101,6 +101,41 @@ TOOLS = [
             }
         }
     },
+
+    # ========== 工具 4：搜索模拟 ==========
+    # 提示：接受一个问题,返回搜索结果
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "当用户询问你需要上网搜索的问题时调用此工具,例如用户问:'2026年世界杯冠军是哪个国家?'",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question":{
+                        "type":"string",
+                        "description":"填写需要联网搜索的问题的关键词,如:'2026年世界杯'"
+                    }
+                },
+                "required": ["question"]
+            }
+        }
+    },
+
+    # ========== 工具 5：当前时间查询 ==========
+    # 提示：返回当前时间告知LLM
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",            
+            "description": "当用户询问有关当前时间的问题时调用,可以让你知道当前时间",      
+            "parameters": {
+                "type": "object",
+                "properties": { },
+                "required": []      
+            }
+        }
+    }
 ]
 
 
@@ -225,15 +260,51 @@ def _read_file(args: dict) -> str:
             ensure_ascii=False
         )
 
+_MOCK_SEARCH = {
+    "2026年世界杯冠军": "2026 年世界杯冠军是西班牙队。",
+    "天气": "请改用 get_weather 工具查询具体城市天气。",
+}
+
+def _web_search(args: dict) -> str:
+    """联网搜索：返回模拟搜索结果。"""
+    # TODO: 1. 取 question 参数  2. 返回模拟搜索结果  3. 无参数时返回 error dict
+    # 提示：
+    #   成功 → return json.dumps({"question":..., "result":"模拟结果"}, ensure_ascii=False)
+    #   失败（无参数）→ return json.dumps({"error":"...", "retry_hint":"..."}, ensure_ascii=False)
+    # 注意：本地无真实联网，返回「模拟结果」即可，重点是让 LLM 知道"已经搜过了"
+    question = args.get("question", "")
+    if not question:
+        return json.dumps({
+            "error":"缺少关键词无法查询",
+            "retry_hint":"重新提取关键词"
+            },  
+            ensure_ascii=False
+        )
+    if question in _MOCK_SEARCH:
+        return _MOCK_SEARCH[question]
+    print(f"日志: 没有{question}相关的搜索结果")
+    return json.dumps(
+        {
+            "error":f"没有{question}相关的搜索结果",
+            "retry_hint":"换个关键词试试"
+        },
+        ensure_ascii=False
+    )
+
+
+def _get_current_time(args: dict) -> str:
+    """当前时间查询：返回系统当前时间（无参数工具，args 用不到但保持签名统一）。"""
+    from datetime import datetime
+    return json.dumps({"current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False)
+
 
 
 # 工具名 → 实现函数 的映射
 # key 必须和 TOOLS 里的 name 完全一致，否则 agent.py 找不到工具会报错
 TOOL_IMPL = {
-    # "工具名": _calculator,   # TODO: 取消注释，key 换成你在 TOOLS 里填的 name
-    "calculator":lambda args: _calculator(args),
-    # "工具名": _get_weather,  # TODO: 取消注释，key 换成你在 TOOLS 里填的 name
-    "get_weather":lambda args:_get_weather(args),
-    # "工具名": _read_file,    # TODO: 取消注释，key 换成你在 TOOLS 里填的 name
-    "read_file":lambda args:_read_file(args)
+    "calculator": _calculator,
+    "get_weather": _get_weather,
+    "read_file": _read_file,
+    "web_search": _web_search,
+    "get_current_time": _get_current_time,
 }
